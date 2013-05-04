@@ -1,4 +1,4 @@
-package apriori;
+package classification;
 
 import java.util.ArrayList;
 import java.util.Collection;

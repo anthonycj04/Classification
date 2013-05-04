@@ -16,13 +16,13 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 	"users": [
 		{
 			"uid": "195947",
-			"trajectories": [[["1427231", "2010-07-12 02:33:31"]]]
+			"check-ins": [["1427231", "2010-07-12 02:33:31"]]
 		},
 		{
 			"uid": "195986",
-			"trajectories": [
-				[["207398", "2009-12-14 03:47:55"]],
-				[["211301", "2009-12-15 03:44:01"], ["211301", "2009-12-15 03:50:01"]]
+			"check-ins": [
+				["207398", "2009-12-14 03:47:55"], ["211301", "2009-12-15 03:44:01"],
+				["211301", "2009-12-15 03:50:01"]
 			]
 		}
 	],
@@ -30,7 +30,10 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 		"211301": ["-117.91844791", "33.99449664"],
 		"1427231": ["-122.040785567", "38.242269367"],
 		"207398": ["-117.5478601167", "34.0726246333"]
-	}
+	},
+	"friendships": [
+		["195947", "195986"]
+	]
 }
 * 
 */
@@ -38,6 +41,15 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 public class DataSet {
 	private List<User> users;
 	private Location locations;
+	private List<List<String>> friendships;
+
+	public List<List<String>> getFriedships(){
+		return friendships;
+	}
+
+	public void setFriendships(List<List<String>> friendships){
+		this.friendships = friendships;
+	}
 
 	public List<User> getUsers(){
 		return users;
@@ -45,13 +57,6 @@ public class DataSet {
 
 	public void setUsers(List<User> users){
 		this.users = users;
-	}
-
-	public int getTotalNumOfTrajectories(){
-		int totalNumOfTrajectories = 0;
-		for (int i = 0; i < users.size(); i++)
-			totalNumOfTrajectories += users.get(i).getNumOfTrajectories();
-		return totalNumOfTrajectories;
 	}
 
 	public int getTotalNumOfRecords(){
@@ -76,6 +81,6 @@ public class DataSet {
 
 	@Override
 	public String toString(){
-		return "{users: " + users +", locations: " + locations + "}";
+		return "{users: " + users +", locations: " + locations + ", friendships: " + friendships + "}";
 	}
 }

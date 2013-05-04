@@ -1,4 +1,4 @@
-package apriori;
+package classification;
 
 public class Math {
 	// used to get the hash table size, has a maximum value though
