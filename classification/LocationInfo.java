@@ -3,8 +3,8 @@ package classification;
 import java.util.TreeMap;
 
 public class LocationInfo {
-	private int numOfVisits;
-	private TreeMap<String, Integer> numOfVisitsPerMonth;
+	private int numOfVisits; // number of people visited here
+	private TreeMap<String, Integer> numOfVisitsPerMonth; // number of peaople visited here every month, <month: visits>
 	private double xCoordinate;
 	private double yCoordinate;
 

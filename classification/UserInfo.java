@@ -6,9 +6,9 @@ import java.util.HashSet;
 import java.util.Map.Entry;
 
 public class UserInfo {
-	private HashSet<Integer> friends;
-	private HashMap<String, Integer> numOfCheckins;
-	private HashMap<String, ArrayList<String>> checkins;
+	private HashSet<Integer> friends; // friendlist
+	private HashMap<String, Integer> numOfCheckins; // number of checkins of an location, excluding checkin month
+	private HashMap<String, ArrayList<String>> checkins; //number of checkins of an location, including checkin month
 
 	public UserInfo(){
 		friends = new HashSet<Integer>();
@@ -100,6 +100,7 @@ public class UserInfo {
 		return sum;
 	}
 
+	// calculates the nearest distance of visited places and the target location
 	public double getNearestDistanceOfVisited(String location, HashMap<String, LocationInfo> locations){
 		double min = 999999999, distance;
 		for (Entry<String, Integer> entry: numOfCheckins.entrySet()){
@@ -109,6 +110,7 @@ public class UserInfo {
 		return min;
 	}
 
+	// calculates the nearest distance of visited places in the given month and the target location
 	public double getNearestDistanceOfVisitedLastMonth(String location, HashMap<String, LocationInfo> locations, String date){
 		double min = 999999999, distance;
 		for (Entry<String, ArrayList<String>> entry: checkins.entrySet()){

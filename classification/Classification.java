@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -32,7 +31,7 @@ public class Classification {
 		HashMap<String, LocationInfo> locations = new HashMap<String, LocationInfo>();
 
 		startTime = System.currentTimeMillis();
-		dataSet = readData(Config.filename);
+		dataSet = readData(Config.dataFilename);
 		System.out.println("reading time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		startTime = System.currentTimeMillis();
@@ -40,10 +39,10 @@ public class Classification {
 		System.out.println("converting time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		startTime = System.currentTimeMillis();
-		classify("dm2013_dataset_3_100result.dat", locations, users, "dm2013_dataset_3_100_myresult.dat");
+		classify(Config.inputFilename, locations, users, Config.outputFilename);
 		System.out.println("classification time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
-		checkAccuracy("dm2013_dataset_3_100_myresult.dat");
+		checkAccuracy(Config.outputFilename, Config.answerFilename);
 		// System.out.println("# of users: " + dataSet.getUsers().size());
 		// System.out.println("# of records: " + dataSet.getTotalNumOfRecords());
 		// System.out.println("# of freindships: " + dataSet.getNumOfFriendships());
@@ -109,7 +108,6 @@ public class Classification {
 			}
 		}
 		// run through the friendships and add the relationships
-		// TODO: assuming the user here all exists, not sure if this is right
 		for (List<Integer> friends: dataSet.getFriendships()){
 			if (!users.containsKey(friends.get(0)))
 				users.put(friends.get(0), new UserInfo());
@@ -120,22 +118,23 @@ public class Classification {
 		}
 	}
 
-	private void classify(String filename, 
+	// try to classify the input file with the given data, and writes the result to the output file
+	private void classify(String inputFilename, 
 							HashMap<String, LocationInfo>  locations, 
 							HashMap<Integer, UserInfo> users, 
-							String outFilename){
-			if ((new File(filename).exists())){
+							String outputFilename){
+		if ((new File(inputFilename).exists())){
 			// file exists, start reading data
 			try {
 				String line, location, result;
 				String[] splittedLine;
 				Integer uid;
 				UserInfo tempUserInfo;
-				BufferedReader bufferedReader = new BufferedReader(new FileReader(filename));
-				PrintWriter printWriter = new PrintWriter(new FileOutputStream(outFilename, false), true);
-				DecimalFormat df = new DecimalFormat("##.#######");
+				BufferedReader bufferedReader = new BufferedReader(new FileReader(inputFilename));
+				PrintWriter printWriter = new PrintWriter(new FileOutputStream(outputFilename, false), true);
+				// DecimalFormat df = new DecimalFormat("##.#######");
 				// String outFilename = "results/" + Config.filename + "_" + df.format(Config.minSup) + ".txt";
-				printWriter.println("\t\t\t\t\t\t\t#of visits\t#of friends\t#of friend's visits\t#of visits of location\t#of fof\t#of fof's visits");
+				// printWriter.println("\t\t\t\t\t\t\t#of visits\t#of friends\t#of friend's visits\t#of visits of location\t#of fof\t#of fof's visits");
 				while ((line = bufferedReader.readLine()) != null){
 					splittedLine = line.split(";");
 					uid = Integer.valueOf(splittedLine[0]);
@@ -144,26 +143,29 @@ public class Classification {
 					if (tempUserInfo.getNumOfCheckin(location) < Config.checkinThreshold && 
 						tempUserInfo.getNumOfFriendsVisited(location, users) < Config.numOfFriendsVisitedThreshold && 
 						tempUserInfo.getNumOfVisitsOfFriends(location, users) < Config.numOfVisitsOfFriendsThreshold && 
-						locations.get(location).getNumOfVisits() < Config.locationThreshold)
+						locations.get(location).getNumOfVisits() < Config.locationThreshold && 
+						tempUserInfo.getNearestDistanceOfVisited(location, locations) > Config.nearestDistanceOfVisitedThreshold)
+						// tempUserInfo.getNearestDistanceOfVisitedLastMonth(location, locations, "2010-07") > Config.nearestDistanceOfVisitedLastMonthThreshold)
 						result = ";No";
 					else
 						result = ";Yes";
-					String temp = line.indexOf(result) == -1?"nooooooooooooo":"";
-					printWriter.println(line + result + "\t" + 
-										tempUserInfo.getNumOfCheckin(location) + "\t\t\t" + 
-										tempUserInfo.getNumOfFriendsVisited(location, users) + "\t\t\t" + 
-										tempUserInfo.getNumOfVisitsOfFriends(location, users) + "\t\t\t\t\t" + 
-										locations.get(location).getNumOfVisits() + "\t\t\t\t\t\t" + 
-										tempUserInfo.getNumOfFriendsOfFriendsVisited(location, users) + "\t\t" + 
-										tempUserInfo.getNumOfVisitsOfFriendsOfFriends(location, users) +  "\t" + 
-										df.format(tempUserInfo.getNearestDistanceOfVisited(location, locations)) +"\t" + 
-										df.format(tempUserInfo.getNearestDistanceOfVisitedLastMonth(location, locations, "2010-07")) + "\t" + 
-										temp);
-					for (Entry<String, Integer> numOfVisitsPerMonth: locations.get(location).getNumOfVisitsPerMonth().entrySet()){
-						printWriter.println(numOfVisitsPerMonth.getKey() + ": " + numOfVisitsPerMonth.getValue() + ", ");
-					}
-					if (uid == 188862)
-						printWriter.println();
+					printWriter.println(line + result);
+					// String temp = line.indexOf(result) == -1?"nooooooooooooo":"";
+					// printWriter.println(line + result + "\t" + 
+					// 					tempUserInfo.getNumOfCheckin(location) + "\t\t\t" + 
+					// 					tempUserInfo.getNumOfFriendsVisited(location, users) + "\t\t\t" + 
+					// 					tempUserInfo.getNumOfVisitsOfFriends(location, users) + "\t\t\t\t\t" + 
+					// 					locations.get(location).getNumOfVisits() + "\t\t\t\t\t\t" + 
+					// 					tempUserInfo.getNumOfFriendsOfFriendsVisited(location, users) + "\t\t" + 
+					// 					tempUserInfo.getNumOfVisitsOfFriendsOfFriends(location, users) +  "\t" + 
+					// 					df.format(tempUserInfo.getNearestDistanceOfVisited(location, locations)) +"\t" + 
+					// 					df.format(tempUserInfo.getNearestDistanceOfVisitedLastMonth(location, locations, "2010-07")) + "\t" + 
+					// 					temp);
+					// for (Entry<String, Integer> numOfVisitsPerMonth: locations.get(location).getNumOfVisitsPerMonth().entrySet()){
+					// 	printWriter.println(numOfVisitsPerMonth.getKey() + ": " + numOfVisitsPerMonth.getValue() + ", ");
+					// }
+					// if (uid == 188862)
+					// 	printWriter.println();
 				}
 				bufferedReader.close();
 				printWriter.close();
@@ -178,20 +180,23 @@ public class Classification {
 		}
 	}
 
-	private void checkAccuracy(String filename){
-		if ((new File(filename).exists())){
+	// check the accuracy by reading the output file and the answer file
+	private void checkAccuracy(String outputFilename, String answerFilename){
+		if ((new File(outputFilename).exists()) && (new File(answerFilename).exists())){
 			// file exists, start reading data
 			int totalTries = 0, correctTries = 0;
 			try {
-				String line;
-				BufferedReader bufferedReader = new BufferedReader(new FileReader(filename));
-				while ((line = bufferedReader.readLine()) != null){
-					if (line.indexOf(";") != -1)
-						totalTries++;
-					if (line.indexOf("No;No") != -1 || line.indexOf("Yes;Yes") != -1)
+				String inLine, outLine;
+				BufferedReader inBufferedReader = new BufferedReader(new FileReader(outputFilename));
+				BufferedReader outBufferedReader = new BufferedReader(new FileReader(answerFilename));
+				while ((inLine = inBufferedReader.readLine()) != null){
+					outLine = outBufferedReader.readLine();
+					totalTries++;
+					if (outLine.equals(inLine))
 						correctTries++;
 				}
-				bufferedReader.close();
+				inBufferedReader.close();
+				outBufferedReader.close();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
