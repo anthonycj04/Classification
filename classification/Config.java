@@ -7,4 +7,5 @@ public class Config {
 	public static int numOfFriendsVisitedThreshold = 1;
 	public static int numOfVisitsOfFriendsThreshold = 1;
 	public static int locationThreshold = 80;
+	public static double nearestDistanceVisitedThreshold = 1.0;
 }

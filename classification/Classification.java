@@ -6,10 +6,10 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.TreeMap;
 
 import jsonobject.DataSet;
 import jsonobject.User;
@@ -28,20 +28,19 @@ public class Classification {
 	public void start(){
 		long startTime;
 		DataSet dataSet;
-		HashMap<String, Integer> locations = new HashMap<String, Integer>(); // used to store the number of checkins of a location
 		HashMap<Integer, UserInfo> users = new HashMap<Integer, UserInfo>();  // used to store the checkins and friendlist of a user
-		HashMap<String, TreeMap<String, Integer>> detailedLocations = new HashMap<String, TreeMap<String, Integer>>(); // used to store the number of checkins of a locations every month
+		HashMap<String, LocationInfo> locations = new HashMap<String, LocationInfo>();
 
 		startTime = System.currentTimeMillis();
 		dataSet = readData(Config.filename);
 		System.out.println("reading time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		startTime = System.currentTimeMillis();
-		convertDataSet(dataSet, locations, users, detailedLocations);
+		convertDataSet(dataSet, locations, users);
 		System.out.println("converting time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		startTime = System.currentTimeMillis();
-		classify("dm2013_dataset_3_100result.dat", locations, users, "dm2013_dataset_3_100_myresult.dat", detailedLocations);
+		classify("dm2013_dataset_3_100result.dat", locations, users, "dm2013_dataset_3_100_myresult.dat");
 		System.out.println("classification time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		checkAccuracy("dm2013_dataset_3_100_myresult.dat");
@@ -61,7 +60,6 @@ public class Classification {
 			try {
 				String line;
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(filename));
-				// while ((line = bufferedReader.readLine()) != null);
 				line = bufferedReader.readLine();
 				line = line.replace("\"check-ins\":", "\"checkins\":");
 				bufferedReader.close();
@@ -82,15 +80,17 @@ public class Classification {
 
 	// read thourgh the dataset and convert it to more accessable data structure
 	private void convertDataSet(DataSet dataSet, 
-								HashMap<String, Integer> locations, 
-								HashMap<Integer, UserInfo> users, 
-								HashMap<String, TreeMap<String, Integer>> detailedLocations){
+								HashMap<String, LocationInfo>  locations, 
+								HashMap<Integer, UserInfo> users){
 		String date;
+		double xCoordinate, yCoordinate;
+		String[] splittedCoordinates;
 		// initialize the locations
 		for (Entry<String, String> entry: dataSet.getLocations().getLocationMap().entrySet()){
-			locations.put(entry.getKey(), 0);
-			detailedLocations.put(entry.getKey(), new TreeMap<String, Integer>());
-			System.out.println(entry.getValue());
+			splittedCoordinates = entry.getValue().split(",");
+			xCoordinate = Double.valueOf(splittedCoordinates[0].substring(1));
+			yCoordinate = Double.valueOf(splittedCoordinates[1].substring(1, splittedCoordinates[1].length() - 1));
+			locations.put(entry.getKey(), new LocationInfo(xCoordinate, yCoordinate));
 		}
 		// run through the data and add the user's checkin into the hashmap, and also count the number of checkins of a location
 		for (User user: dataSet.getUsers()){
@@ -99,14 +99,13 @@ public class Classification {
 				users.put(user.getUid(), new UserInfo());
 			UserInfo tempUserInfo = users.get(user.getUid());
 			for (List<String> checkin: user.getCheckins()){
-				tempUserInfo.addCheckin(checkin.get(0));
-				locations.put(checkin.get(0), locations.get(checkin.get(0)) + 1);
-
 				date = checkin.get(1).substring(0, 7);
-				if (!detailedLocations.get(checkin.get(0)).containsKey(date))
-					detailedLocations.get(checkin.get(0)).put(date, 0);
-				else
-					detailedLocations.get(checkin.get(0)).put(date, detailedLocations.get(checkin.get(0)).get(date) + 1);
+
+				tempUserInfo.incNumOfCheckin(checkin.get(0));
+				locations.get(checkin.get(0)).incNumOfVisits();
+				tempUserInfo.addCheckin(checkin.get(0), date);
+				
+				locations.get(checkin.get(0)).incNumOfVisitsPerMonth(date);
 			}
 		}
 		// run through the friendships and add the relationships
@@ -122,10 +121,9 @@ public class Classification {
 	}
 
 	private void classify(String filename, 
-							HashMap<String, Integer> locations, 
+							HashMap<String, LocationInfo>  locations, 
 							HashMap<Integer, UserInfo> users, 
-							String outFilename, 
-							HashMap<String, TreeMap<String, Integer>> detailedLocations){
+							String outFilename){
 			if ((new File(filename).exists())){
 			// file exists, start reading data
 			try {
@@ -135,7 +133,7 @@ public class Classification {
 				UserInfo tempUserInfo;
 				BufferedReader bufferedReader = new BufferedReader(new FileReader(filename));
 				PrintWriter printWriter = new PrintWriter(new FileOutputStream(outFilename, false), true);
-				// DecimalFormat df = new DecimalFormat("##.#####");
+				DecimalFormat df = new DecimalFormat("##.#######");
 				// String outFilename = "results/" + Config.filename + "_" + df.format(Config.minSup) + ".txt";
 				printWriter.println("\t\t\t\t\t\t\t#of visits\t#of friends\t#of friend's visits\t#of visits of location\t#of fof\t#of fof's visits");
 				while ((line = bufferedReader.readLine()) != null){
@@ -143,24 +141,26 @@ public class Classification {
 					uid = Integer.valueOf(splittedLine[0]);
 					location = splittedLine[1];
 					tempUserInfo = users.get(uid);
-					if (tempUserInfo.getCheckin(location) < Config.checkinThreshold && 
+					if (tempUserInfo.getNumOfCheckin(location) < Config.checkinThreshold && 
 						tempUserInfo.getNumOfFriendsVisited(location, users) < Config.numOfFriendsVisitedThreshold && 
 						tempUserInfo.getNumOfVisitsOfFriends(location, users) < Config.numOfVisitsOfFriendsThreshold && 
-						locations.get(location) < Config.locationThreshold)
+						locations.get(location).getNumOfVisits() < Config.locationThreshold)
 						result = ";No";
 					else
 						result = ";Yes";
 					String temp = line.indexOf(result) == -1?"nooooooooooooo":"";
 					printWriter.println(line + result + "\t" + 
-										tempUserInfo.getCheckin(location) + "\t\t\t" + 
+										tempUserInfo.getNumOfCheckin(location) + "\t\t\t" + 
 										tempUserInfo.getNumOfFriendsVisited(location, users) + "\t\t\t" + 
 										tempUserInfo.getNumOfVisitsOfFriends(location, users) + "\t\t\t\t\t" + 
-										locations.get(location) + "\t\t\t\t\t\t" + 
+										locations.get(location).getNumOfVisits() + "\t\t\t\t\t\t" + 
 										tempUserInfo.getNumOfFriendsOfFriendsVisited(location, users) + "\t\t" + 
 										tempUserInfo.getNumOfVisitsOfFriendsOfFriends(location, users) +  "\t" + 
+										df.format(tempUserInfo.getNearestDistanceOfVisited(location, locations)) +"\t" + 
+										df.format(tempUserInfo.getNearestDistanceOfVisitedLastMonth(location, locations, "2010-07")) + "\t" + 
 										temp);
-					for (Entry<String, Integer> detailedLocation: detailedLocations.get(location).entrySet()){
-						printWriter.println(detailedLocation.getKey() + ": " + detailedLocation.getValue() + ", ");
+					for (Entry<String, Integer> numOfVisitsPerMonth: locations.get(location).getNumOfVisitsPerMonth().entrySet()){
+						printWriter.println(numOfVisitsPerMonth.getKey() + ": " + numOfVisitsPerMonth.getValue() + ", ");
 					}
 					if (uid == 188862)
 						printWriter.println();
