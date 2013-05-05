@@ -41,13 +41,13 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 public class DataSet {
 	private List<User> users;
 	private Location locations;
-	private List<List<String>> friendships;
+	private List<List<Integer>> friendships;
 
-	public List<List<String>> getFriedships(){
+	public List<List<Integer>> getFriendships(){
 		return friendships;
 	}
 
-	public void setFriendships(List<List<String>> friendships){
+	public void setFriendships(List<List<Integer>> friendships){
 		this.friendships = friendships;
 	}
 
@@ -57,6 +57,18 @@ public class DataSet {
 
 	public void setUsers(List<User> users){
 		this.users = users;
+	}
+
+	public int getStartTime(){
+		return 0;
+	}
+
+	public int getEndTime(){
+		return 1;
+	}
+
+	public int getNumOfFriendships(){
+		return friendships.size();
 	}
 
 	public int getTotalNumOfRecords(){

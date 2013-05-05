@@ -2,6 +2,7 @@ package classification;
 
 public class Math {
 	// used to get the hash table size, has a maximum value though
+	/*
 	public static int calculateCombination(long n, long r){
 		if (n < r)
 			return 0;
@@ -39,5 +40,5 @@ public class Math {
 			c /= i;
 		}
 		return c;
-	}
+	}*/
 }

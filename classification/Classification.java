@@ -2,16 +2,11 @@ package classification;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -19,12 +14,6 @@ import jsonobject.DataSet;
 import jsonobject.User;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-/*
- * Implements the Apriori Algorithm(with Direct Hashing and Pruning)
- * Reference: 	An Effective Hash_Based Algorithm for Mining Association Rules
- * 				Jong Soo Park, Ming-Syan Chen, Philip S. Yu
- */
 
 public class Classification {
 	public static void main(String[] args){
@@ -36,104 +25,35 @@ public class Classification {
 	}
 
 	public void start(){
-		int iteration, numOfFrequentItemSets = 0, numOfFreqItems = 0;
-		DataSet dataSet = readData(Config.filename);
-		System.out.println(dataSet.toString());
-		System.exit(0);
+		long startTime;
+		DataSet dataSet;
+		HashMap<String, Integer> locations = new HashMap<String, Integer>(); // used to store the number of checkins of a location
+		HashMap<Integer, UserInfo> users = new HashMap<Integer, UserInfo>();  // used to store the checkins and friendlist of a user
+
+		startTime = System.currentTimeMillis();
+		dataSet = readData(Config.filename);
+		System.out.println("reading time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
+
+		startTime = System.currentTimeMillis();
+		convertDataSet(dataSet, locations, users);
+		System.out.println("converting time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
+
+		startTime = System.currentTimeMillis();
+		classify("dm2013_dataset_3_100result.dat", locations, users, "dm2013_dataset_3_100_myresult.dat");
+		System.out.println("classification time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 		// ArrayList<NonDuplicateArrayList<String>> transactions = getTransactions(dataSet);
-		long startTime = System.currentTimeMillis();
-		DecimalFormat df = new DecimalFormat("##.#####");
-		PrintWriter printWriter = null;
-		String outFilename = "results/" + Config.filename + "_" + df.format(Config.minSup) + ".txt";
+		// DecimalFormat df = new DecimalFormat("##.#####");
+		// PrintWriter printWriter = null;
+		// String outFilename = "results/" + Config.filename + "_" + df.format(Config.minSup) + ".txt";
 
-		try {
-			printWriter = new PrintWriter(new FileOutputStream(outFilename, false), true);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-/*
-		// the first pass
-		Config.minSupCount = (int) java.lang.Math.ceil(transactions.size() * Config.minSup);
-		int[] hashTable = new int[Math.calculateCombination(dataSet.getLocations().getLocationMap().size(), 2)];
-		HashMap<NonDuplicateArrayList<String>, Integer> candidates = new HashMap<NonDuplicateArrayList<String>, Integer>();
-		ArrayList<NonDuplicateArrayList<String>> frequentItemSet = new ArrayList<NonDuplicateArrayList<String>>();
-		for (NonDuplicateArrayList<String> transaction: transactions){
-			for (NonDuplicateArrayList<String> subset: getKSubset(transaction, 1)){
-				if (candidates.containsKey(subset))
-					candidates.put(subset, candidates.get(subset) + 1);
-				else
-					candidates.put(subset, 1);
-			}
-			for (NonDuplicateArrayList<String> subset: getKSubset(transaction, 2))
-				hashTable[Math.hash(subset, hashTable.length)]++;
-		}
-		frequentItemSet.clear();
-		for (Entry<NonDuplicateArrayList<String>, Integer> entry: candidates.entrySet()){
-			if (entry.getValue() >= Config.minSupCount)
-				frequentItemSet.add(entry.getKey());
-		}
-		printFrequentItemSet(frequentItemSet, printWriter);
-		numOfFreqItems += frequentItemSet.size();
-		numOfFrequentItemSets += frequentItemSet.size();
-
-		// Direct hashing and pruning
-		iteration = 2;
-		while (frequentItemSet.size() > 0 && iteration < Config.DHPThreshold){
-			System.out.println("generating candidates in iteration: " + iteration);
-			generateCandidates(frequentItemSet, hashTable, candidates, iteration);
-			int[] newHashTable = new int[Math.calculateCombination(dataSet.getLocations().getLocationMap().size(), iteration + 1)];
-			ArrayList<NonDuplicateArrayList<String>> newTransactions = new ArrayList<NonDuplicateArrayList<String>>();
-			for (NonDuplicateArrayList<String> transaction: transactions){
-				NonDuplicateArrayList<String> newTransaction = new NonDuplicateArrayList<String>();
-				countSupport(transaction, candidates, iteration, newTransaction);
-				if (newTransaction.size() > iteration){
-					NonDuplicateArrayList<String> newnewTransaction = new NonDuplicateArrayList<String>();
-					makeHashTable(newTransaction, hashTable, iteration, newHashTable, newnewTransaction);
-					if (newnewTransaction.size() > iteration)
-						newTransactions.add(newnewTransaction);
-				}
-			}
-			hashTable = newHashTable;
-			transactions = newTransactions;
-			frequentItemSet.clear();
-			System.out.println("generating frequent itemsets in iteration: " + iteration);
-			for (Entry<NonDuplicateArrayList<String>, Integer> entry: candidates.entrySet()){
-				if (entry.getValue() >= Config.minSupCount)
-					frequentItemSet.add(entry.getKey());
-			}
-			printFrequentItemSet(frequentItemSet, printWriter);
-			numOfFrequentItemSets += frequentItemSet.size();
-			numOfFreqItems += frequentItemSet.size() * iteration;
-			iteration++;
-		}
-
-		// original Apriori
-		generateCandidates(frequentItemSet, hashTable, candidates, iteration);
-		while (frequentItemSet.size() > 0){
-			ArrayList<NonDuplicateArrayList<String>> newTransactions = new ArrayList<NonDuplicateArrayList<String>>();
-			for (NonDuplicateArrayList<String> transaction: transactions){
-				NonDuplicateArrayList<String> newTransaction = new NonDuplicateArrayList<String>();
-				countSupport(transaction, candidates, iteration, newTransaction);
-				if (newTransaction.size() > iteration)
-					newTransactions.add(newTransaction);
-			}
-			frequentItemSet.clear();
-			System.out.println("generating frequent itemsets in iteration: " + iteration);
-			for (Entry<NonDuplicateArrayList<String>, Integer> entry: candidates.entrySet()){
-				if (entry.getValue() >= Config.minSupCount)
-					frequentItemSet.add(entry.getKey());
-			}
-			printFrequentItemSet(frequentItemSet, printWriter);
-			numOfFrequentItemSets += frequentItemSet.size();
-			numOfFreqItems += frequentItemSet.size() * iteration;
-			if (newTransactions.size() == 0)
-				break;
-			System.out.println("generating candidates in iteration: " + iteration);
-			aprioriGen(frequentItemSet, candidates, iteration);
-			iteration++;
-		}
+		// try {
+		// 	printWriter = new PrintWriter(new FileOutputStream(outFilename, false), true);
+		// } catch (FileNotFoundException e) {
+		// 	e.printStackTrace();
+		// }
 
 		// print out the results
+		/*
 		long endTime = System.currentTimeMillis();
 		printWriter.println();
 		printWriter.println("------------min support count: " + Config.minSupCount + " ----------------------------------------");
@@ -148,6 +68,13 @@ public class Classification {
 		printWriter.println("# of distinct locations: " + dataSet.getLocations().getLocationMap().size());
 		printWriter.close();
 		System.out.println("Done");*/
+		System.out.println("# of users: " + dataSet.getUsers().size());
+		System.out.println("# of records: " + dataSet.getTotalNumOfRecords());
+		System.out.println("# of freindships: " + dataSet.getNumOfFriendships());
+		System.out.println("# of distinct locations: " + dataSet.getLocations().getLocationMap().size());
+		System.out.println("Start time: " + dataSet.getStartTime());
+		System.out.println("End time: " + dataSet.getEndTime());
+		System.out.println("Done");
 	}
 
 	// reads a json string from a given file and convert it into a java class
@@ -174,5 +101,70 @@ public class Classification {
 			System.exit(1);
 		}
 		return null;
+	}
+
+	// read thourgh the dataset and convert it to more accessable data structure
+	private void convertDataSet(DataSet dataSet, HashMap<String, Integer> locations, HashMap<Integer, UserInfo> users){
+		// initialize the locations
+		for (Entry<String, String> entry: dataSet.getLocations().getLocationMap().entrySet())
+			locations.put(entry.getKey(), 0);
+		// run through the data and add the user's checkin into the hashmap, and also count the number of checkins of a location
+		for (User user: dataSet.getUsers()){
+			// add the user if it doesn't exist
+			if (!users.containsKey(user.getUid()))
+				users.put(user.getUid(), new UserInfo());
+			UserInfo tempUserInfo = users.get(user.getUid());
+			for (List<String> checkin: user.getCheckins()){
+				tempUserInfo.addCheckin(checkin.get(0));
+				locations.put(checkin.get(0), locations.get(checkin.get(0)) + 1);
+			}
+		}
+		// run through the friendships and add the relationships
+		// TODO: assuming the user here all exists, not sure if this is right
+		for (List<Integer> friends: dataSet.getFriendships()){
+			if (!users.containsKey(friends.get(0)))
+				users.put(friends.get(0), new UserInfo());
+			if (!users.containsKey(friends.get(1)))
+				users.put(friends.get(1), new UserInfo());
+			users.get(friends.get(0)).addFriend(friends.get(1));
+			users.get(friends.get(1)).addFriend(friends.get(0));
+		}
+	}
+
+	private void classify(String filename, HashMap<String, Integer> locations, HashMap<Integer, UserInfo> users, String outFilename){
+			if ((new File(filename).exists())){
+			// file exists, start reading data
+			try {
+				String line, location;
+				String[] splittedLine;
+				Integer uid;
+				UserInfo tempUserInfo;
+				BufferedReader bufferedReader = new BufferedReader(new FileReader(filename));
+				PrintWriter printWriter = new PrintWriter(new FileOutputStream(outFilename, false), true);
+				// DecimalFormat df = new DecimalFormat("##.#####");
+				// String outFilename = "results/" + Config.filename + "_" + df.format(Config.minSup) + ".txt";
+				printWriter.println("\t\t\t\t\t\t\t#of visits\t#of friends\t#of friend's visits\t#of visits of location");
+				while ((line = bufferedReader.readLine()) != null){
+					splittedLine = line.split(";");
+					uid = Integer.valueOf(splittedLine[0]);
+					location = splittedLine[1];
+					tempUserInfo = users.get(uid);
+					printWriter.println(line + "\t\t" + 
+										tempUserInfo.getCheckin(location) + "\t\t\t" + 
+										tempUserInfo.getNumOfFriendsVisited(location, users) + "\t\t\t" + 
+										tempUserInfo.getNumOfVisitsOfFriends(location, users) + "\t\t\t\t\t" + 
+										locations.get(location));
+				}
+				bufferedReader.close();
+				printWriter.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		else{
+			// file doesn't exist
+			System.err.println("file doesn't exist");
+			System.exit(1);
+		}
 	}
 }
