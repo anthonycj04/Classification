@@ -41,39 +41,14 @@ public class Classification {
 		startTime = System.currentTimeMillis();
 		classify("dm2013_dataset_3_100result.dat", locations, users, "dm2013_dataset_3_100_myresult.dat");
 		System.out.println("classification time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
-		// ArrayList<NonDuplicateArrayList<String>> transactions = getTransactions(dataSet);
-		// DecimalFormat df = new DecimalFormat("##.#####");
-		// PrintWriter printWriter = null;
-		// String outFilename = "results/" + Config.filename + "_" + df.format(Config.minSup) + ".txt";
 
-		// try {
-		// 	printWriter = new PrintWriter(new FileOutputStream(outFilename, false), true);
-		// } catch (FileNotFoundException e) {
-		// 	e.printStackTrace();
-		// }
-
-		// print out the results
-		/*
-		long endTime = System.currentTimeMillis();
-		printWriter.println();
-		printWriter.println("------------min support count: " + Config.minSupCount + " ----------------------------------------");
-		printWriter.println();
-		printWriter.println("Running time: " + (double)(endTime - startTime) / 1000);
-		printWriter.println("Number of frequent itemsets: " + numOfFrequentItemSets);
-		printWriter.println("Average items per frequent itemsets: " + df.format((double) numOfFreqItems / numOfFrequentItemSets));
-		printWriter.println("---------------------------------------------------------------------------");
-		printWriter.println("# of users: " + dataSet.getUsers().size());
-		printWriter.println("# of trajectories: " + dataSet.getTotalNumOfTrajectories());
-		printWriter.println("# of records: " + dataSet.getTotalNumOfRecords());
-		printWriter.println("# of distinct locations: " + dataSet.getLocations().getLocationMap().size());
-		printWriter.close();
-		System.out.println("Done");*/
-		System.out.println("# of users: " + dataSet.getUsers().size());
-		System.out.println("# of records: " + dataSet.getTotalNumOfRecords());
-		System.out.println("# of freindships: " + dataSet.getNumOfFriendships());
-		System.out.println("# of distinct locations: " + dataSet.getLocations().getLocationMap().size());
-		System.out.println("Start time: " + dataSet.getStartTime());
-		System.out.println("End time: " + dataSet.getEndTime());
+		checkAccuracy("dm2013_dataset_3_100_myresult.dat");
+		// System.out.println("# of users: " + dataSet.getUsers().size());
+		// System.out.println("# of records: " + dataSet.getTotalNumOfRecords());
+		// System.out.println("# of freindships: " + dataSet.getNumOfFriendships());
+		// System.out.println("# of distinct locations: " + dataSet.getLocations().getLocationMap().size());
+		// System.out.println("Start time: " + dataSet.getStartTime());
+		// System.out.println("End time: " + dataSet.getEndTime());
 		System.out.println("Done");
 	}
 
@@ -135,7 +110,7 @@ public class Classification {
 			if ((new File(filename).exists())){
 			// file exists, start reading data
 			try {
-				String line, location;
+				String line, location, result;
 				String[] splittedLine;
 				Integer uid;
 				UserInfo tempUserInfo;
@@ -143,23 +118,62 @@ public class Classification {
 				PrintWriter printWriter = new PrintWriter(new FileOutputStream(outFilename, false), true);
 				// DecimalFormat df = new DecimalFormat("##.#####");
 				// String outFilename = "results/" + Config.filename + "_" + df.format(Config.minSup) + ".txt";
-				printWriter.println("\t\t\t\t\t\t\t#of visits\t#of friends\t#of friend's visits\t#of visits of location");
+				printWriter.println("\t\t\t\t\t\t\t#of visits\t#of friends\t#of friend's visits\t#of visits of location\t#of fof\t#of fof's visits");
 				while ((line = bufferedReader.readLine()) != null){
 					splittedLine = line.split(";");
 					uid = Integer.valueOf(splittedLine[0]);
 					location = splittedLine[1];
 					tempUserInfo = users.get(uid);
-					printWriter.println(line + "\t\t" + 
+					if (tempUserInfo.getCheckin(location) < Config.checkinThreshold && 
+						tempUserInfo.getNumOfFriendsVisited(location, users) < Config.numOfFriendsVisitedThreshold && 
+						tempUserInfo.getNumOfVisitsOfFriends(location, users) < Config.numOfVisitsOfFriendsThreshold && 
+						locations.get(location) < Config.locationThreshold)
+						result = ";No";
+					else
+						result = ";Yes";
+					String temp = line.indexOf(result) == -1?"nooooooooooooo":"";
+					printWriter.println(line + result + "\t" + 
 										tempUserInfo.getCheckin(location) + "\t\t\t" + 
 										tempUserInfo.getNumOfFriendsVisited(location, users) + "\t\t\t" + 
 										tempUserInfo.getNumOfVisitsOfFriends(location, users) + "\t\t\t\t\t" + 
-										locations.get(location));
+										locations.get(location) + "\t\t\t\t\t\t" + 
+										tempUserInfo.getNumOfFriendsOfFriendsVisited(location, users) + "\t\t" + 
+										tempUserInfo.getNumOfVisitsOfFriendsOfFriends(location, users) +  "\t" + 
+										temp);
+					if (uid == 188862)
+						printWriter.println();
 				}
 				bufferedReader.close();
 				printWriter.close();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+		else{
+			// file doesn't exist
+			System.err.println("file doesn't exist");
+			System.exit(1);
+		}
+	}
+
+	private void checkAccuracy(String filename){
+		if ((new File(filename).exists())){
+			// file exists, start reading data
+			int totalTries = 0, correctTries = 0;
+			try {
+				String line;
+				BufferedReader bufferedReader = new BufferedReader(new FileReader(filename));
+				while ((line = bufferedReader.readLine()) != null){
+					if (line.indexOf(";") != -1)
+						totalTries++;
+					if (line.indexOf("No;No") != -1 || line.indexOf("Yes;Yes") != -1)
+						correctTries++;
+				}
+				bufferedReader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			System.out.println("Accuracy: " + (double) correctTries / totalTries);
 		}
 		else{
 			// file doesn't exist
