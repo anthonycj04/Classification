@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import jsonobject.DataSet;
 import jsonobject.User;
@@ -29,17 +30,18 @@ public class Classification {
 		DataSet dataSet;
 		HashMap<String, Integer> locations = new HashMap<String, Integer>(); // used to store the number of checkins of a location
 		HashMap<Integer, UserInfo> users = new HashMap<Integer, UserInfo>();  // used to store the checkins and friendlist of a user
+		HashMap<String, TreeMap<String, Integer>> detailedLocations = new HashMap<String, TreeMap<String, Integer>>(); // used to store the number of checkins of a locations every month
 
 		startTime = System.currentTimeMillis();
 		dataSet = readData(Config.filename);
 		System.out.println("reading time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		startTime = System.currentTimeMillis();
-		convertDataSet(dataSet, locations, users);
+		convertDataSet(dataSet, locations, users, detailedLocations);
 		System.out.println("converting time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		startTime = System.currentTimeMillis();
-		classify("dm2013_dataset_3_100result.dat", locations, users, "dm2013_dataset_3_100_myresult.dat");
+		classify("dm2013_dataset_3_100result.dat", locations, users, "dm2013_dataset_3_100_myresult.dat", detailedLocations);
 		System.out.println("classification time: " + (double)(System.currentTimeMillis() - startTime) / 1000);
 
 		checkAccuracy("dm2013_dataset_3_100_myresult.dat");
@@ -79,10 +81,17 @@ public class Classification {
 	}
 
 	// read thourgh the dataset and convert it to more accessable data structure
-	private void convertDataSet(DataSet dataSet, HashMap<String, Integer> locations, HashMap<Integer, UserInfo> users){
+	private void convertDataSet(DataSet dataSet, 
+								HashMap<String, Integer> locations, 
+								HashMap<Integer, UserInfo> users, 
+								HashMap<String, TreeMap<String, Integer>> detailedLocations){
+		String date;
 		// initialize the locations
-		for (Entry<String, String> entry: dataSet.getLocations().getLocationMap().entrySet())
+		for (Entry<String, String> entry: dataSet.getLocations().getLocationMap().entrySet()){
 			locations.put(entry.getKey(), 0);
+			detailedLocations.put(entry.getKey(), new TreeMap<String, Integer>());
+			System.out.println(entry.getValue());
+		}
 		// run through the data and add the user's checkin into the hashmap, and also count the number of checkins of a location
 		for (User user: dataSet.getUsers()){
 			// add the user if it doesn't exist
@@ -92,6 +101,12 @@ public class Classification {
 			for (List<String> checkin: user.getCheckins()){
 				tempUserInfo.addCheckin(checkin.get(0));
 				locations.put(checkin.get(0), locations.get(checkin.get(0)) + 1);
+
+				date = checkin.get(1).substring(0, 7);
+				if (!detailedLocations.get(checkin.get(0)).containsKey(date))
+					detailedLocations.get(checkin.get(0)).put(date, 0);
+				else
+					detailedLocations.get(checkin.get(0)).put(date, detailedLocations.get(checkin.get(0)).get(date) + 1);
 			}
 		}
 		// run through the friendships and add the relationships
@@ -106,7 +121,11 @@ public class Classification {
 		}
 	}
 
-	private void classify(String filename, HashMap<String, Integer> locations, HashMap<Integer, UserInfo> users, String outFilename){
+	private void classify(String filename, 
+							HashMap<String, Integer> locations, 
+							HashMap<Integer, UserInfo> users, 
+							String outFilename, 
+							HashMap<String, TreeMap<String, Integer>> detailedLocations){
 			if ((new File(filename).exists())){
 			// file exists, start reading data
 			try {
@@ -140,6 +159,9 @@ public class Classification {
 										tempUserInfo.getNumOfFriendsOfFriendsVisited(location, users) + "\t\t" + 
 										tempUserInfo.getNumOfVisitsOfFriendsOfFriends(location, users) +  "\t" + 
 										temp);
+					for (Entry<String, Integer> detailedLocation: detailedLocations.get(location).entrySet()){
+						printWriter.println(detailedLocation.getKey() + ": " + detailedLocation.getValue() + ", ");
+					}
 					if (uid == 188862)
 						printWriter.println();
 				}
